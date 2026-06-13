@@ -35,7 +35,7 @@ export class TacticsScene extends Phaser.Scene {
     private playerUnits: PlayerUnit[] = [];
     private enemyUnits: Enemy[] = [];
     private statusTexts: Phaser.GameObjects.Text[] = [];
-    private selectedPlayerIndex = 0;
+    private selectedPlayerIndex: number = -1;
     private selectedEnemyIndex: number = -1;
     private enemyStatusTexts: Phaser.GameObjects.Text[] = [];
   
@@ -57,6 +57,8 @@ export class TacticsScene extends Phaser.Scene {
     }
 
     create() {
+
+        this.input.mouse!.disableContextMenu();
 
         this.add.rectangle(
             this.LEFT_PANEL_W / 2,
@@ -153,26 +155,70 @@ export class TacticsScene extends Phaser.Scene {
 
     private handleUnitSelection() {
 
+  
 
-        if (!this.input.activePointer.isDown ) return;
+
+        if (!this.input.activePointer.leftButtonDown()) return;
         const pointer = this.input.activePointer;
         const col = Math.floor((pointer.x - this.GRID_OFFSET_X) / this.TILE_SIZE);
         const row = Math.floor((pointer.y - this.GRID_OFFSET_Y) / this.TILE_SIZE);
         if (col < 0 || col >= this.GRID_COLS || row < 0 || row >= this.GRID_ROWS) return;
 
-        const Unit = this.playerUnits.find(unit => unit.col === col && unit.row === row && !unit.hasActedThisTurn);
+        const playerUnit = this.playerUnits.find(unit => unit.col === col && unit.row === row && !unit.hasActedThisTurn);
 
-        if (Unit) {
-            this.selectedPlayerIndex = this.playerUnits.indexOf(Unit);
+        if (playerUnit) {
+            this.selectedPlayerIndex = this.playerUnits.indexOf(playerUnit);
             this.planningStep = 'action';
-            this.highlightUnit(Unit);
-            this.updateStatusPanel(); ;  
+            this.highlightUnit(playerUnit);
+            this.updateStatusPanel(playerUnit, this.statusTexts);  
+          
+            this.enemyStatusTexts.forEach(t => t.destroy());
+            this.enemyStatusTexts = [];
+        }
+
+        const enemyUnit = this.enemyUnits.find(enemy => enemy.col === col && enemy.row === row);
+
+        if (enemyUnit) {
+            this.selectedEnemyIndex = this.enemyUnits.indexOf(enemyUnit);
+            this.planningStep = 'select';
+            this.updateStatusPanel(enemyUnit, this.enemyStatusTexts);
+
+            
+            this.statusTexts.forEach(t => t.destroy());
+            this.statusTexts = [];
+           
+            return;
+
         }
 
         
     }
 
     private handleUnitAction() {
+
+        if (this.input.activePointer.rightButtonDown()) {
+            
+            if (this.selectedPlayerIndex >= 0 && this.selectedPlayerIndex < this.playerUnits.length) {
+                this.clearHighlight(this.playerUnits[this.selectedPlayerIndex]);
+            }
+            
+                
+            this.selectedPlayerIndex = -1;
+            this.selectedEnemyIndex = -1;
+            
+
+            this.statusTexts.forEach(t => t.destroy());
+            this.statusTexts = [];
+            this.enemyStatusTexts.forEach(t => t.destroy());
+            this.enemyStatusTexts = [];
+
+            this.planningStep = 'select';
+
+            return;
+
+        }
+
+
         if (!this.input.activePointer.isDown) return;
         const pointer = this.input.activePointer;
         const col = Math.floor((pointer.x - this.GRID_OFFSET_X) / this.TILE_SIZE);
@@ -194,12 +240,11 @@ export class TacticsScene extends Phaser.Scene {
     
     }
 
-    private updateStatusPanel() {
+    private updateStatusPanel(selectedUnit: PlayerUnit | Enemy, statusTexts: Phaser.GameObjects.Text[]) {
 
-        this.statusTexts.forEach(text => text.destroy());
-        this.statusTexts = [];
+        statusTexts.forEach(text => text.destroy());
+        statusTexts.length = 0;
 
-        const selectedUnit = this.playerUnits[this.selectedPlayerIndex];
 
         const panelX = 10; 
         const panelY = 10;
@@ -213,12 +258,11 @@ export class TacticsScene extends Phaser.Scene {
             `Move Range: ${selectedUnit.config.moveRange}`,
             `Damage: ${selectedUnit.config.damage}`,
             `Attack Range: ${selectedUnit.config.attackRange}`,
-            selectedUnit.hasActedThisTurn ? 'Status: Acted' : 'Status: Ready',
         ];
 
         lines.forEach((line, index) => {
             const text = this.add.text(panelX, panelY + index * lineHeight, line, style);
-            this.statusTexts.push(text);
+            statusTexts.push(text);
         });
 
     }

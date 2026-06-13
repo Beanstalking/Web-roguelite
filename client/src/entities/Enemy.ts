@@ -106,7 +106,7 @@ export class Enemy {
     }
 
     takeTurn(playerCol: number, playerRow: number): void {
-
+        console.log(`Enemy at (${this.col},${this.row}) takes turn, player at (${playerCol},${playerRow})`);
     }
 
     destroy() {
